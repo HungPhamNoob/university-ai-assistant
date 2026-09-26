@@ -56,6 +56,7 @@ data/*
 speech.md
 practice.md
 support_speech.txt
+/cv.md
 
 # LaTeX (personal documents compiled in the repo root — not part of the project)
 /main.tex
