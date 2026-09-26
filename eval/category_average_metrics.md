@@ -1,35 +1,28 @@
 # RAGAS category average metrics
 
-Nguồn: `eval/ragas_results.csv` (lượt chạy `RAGAS_LIMIT=6` ngày 26-09-2026,
-context thật từ RAG service, LLM-judge qua provider trong `.env`).
-Số bản ghi: **6**.
+Nguồn: `eval/ragas_results.csv` — full run **36/36** test cases của
+`eval/test_dataset.json` (không đặt `RAGAS_LIMIT`), ngày 26-09-2026.
+Context thật từ RAG service (Qdrant Cloud `uet_hr_docs`, 655 points);
+LLM-judge qua provider trong `.env`.
+
+`Scored` = số bản ghi tính được ít nhất một metric; các ô `—` là metric
+không áp dụng được (xem Ghi chú).
 
 ## Overall
 
 | Metric | Score |
 |---|---:|
-| faithfulness | 0.8426 |
-| answer_relevancy | 0.8097 |
-| context_precision | 0.7093 |
-| context_recall | 0.6111 |
+| faithfulness | 0.9195 |
+| answer_relevancy | 0.7744 |
+| context_precision | 0.6626 |
+| context_recall | 0.4833 |
 
 ## By category
 
-| Category | Records | faithfulness | answer_relevancy | context_precision | context_recall |
-|:---|---:|---:|---:|---:|---:|
-| Factual | 3 | 0.7778 | 0.8349 | 0.9722 | 0.8889 |
-| Multi-hop | 1 | 0.8333 | 0.9714 | 0.7556 | 1.0000 |
-| Relational | 2 | 0.9444 | 0.6910 | 0.2917 | 0.0000 |
-
-## Ghi chú
-
-- Mẫu rất nhỏ (6 bản ghi, 1–3 mỗi category) vì chạy với `RAGAS_LIMIT=6`;
-  các điểm trung bình theo category chỉ mang tính định hướng, không phải
-  benchmark thống kê.
-- Hai câu Relational hỏi về phạm vi đối tượng/hoạt động và bằng chứng cho
-  quyết định AI rủi ro cao trong khung tham chiếu: `context_precision` và
-  `context_recall` thấp cho thấy retrieval khó phủ đúng đoạn khi câu hỏi
-  trải trên nhiều mục của tài liệu, dù `faithfulness` vẫn cao (câu trả lời
-  không bịa ngoài context).
-- Chạy lại toàn bộ 36 câu với `uv run python eval/evaluate_ragas.py`
-  (không đặt `RAGAS_LIMIT`) để có số ổn định hơn, rồi tạo lại bảng này.
+| Category | Records | Scored | faithfulness | answer_relevancy | context_precision | context_recall |
+|:---|---:|---:|---:|---:|---:|---:|
+| Analytical | 4 | 2 | 1.0000 | 0.0000 | 1.0000 | 0.2500 |
+| Factual | 16 | 10 | 0.9083 | 0.8822 | 0.6895 | 0.7167 |
+| Multi-hop | 7 | 4 | 0.8393 | 0.7536 | 0.5639 | 0.5000 |
+| Negative | 1 | 0 | — | — | — | — |
+| Relational | 8 | 5 | 0.9714 | 0.8850 | 0.5323 | 0.0000 |
