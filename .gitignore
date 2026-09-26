@@ -69,10 +69,11 @@ support_speech.txt
 *.synctex.gz
 
 # Generated evaluation output
+# (eval/category_average_metrics.md is intentionally tracked: a curated
+# summary table committed to the repo, unlike the raw *_results.* dumps.)
 eval/*_results.json
 eval/*_results.md
 eval/*_results.csv
-eval/category_average_metrics.md
 eval/cli_test_done.flag
 eval/screenshots/
 
