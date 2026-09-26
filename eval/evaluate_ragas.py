@@ -7,6 +7,7 @@ precision/recall. Generated CSV/Markdown reports stay local via .gitignore.
 
 from __future__ import annotations
 
+import ast
 import json
 import logging
 import os
@@ -50,6 +51,13 @@ ROOT = Path(__file__).resolve().parents[1]
 DATASET_PATH = ROOT / "eval" / "test_dataset.json"
 CSV_PATH = ROOT / "eval" / "ragas_results.csv"
 SUMMARY_PATH = ROOT / "eval" / "ragas_results.md"
+RESCORE_PARTIAL_PATH = ROOT / "eval" / "ragas_rescore_partial.csv"
+METRIC_NAMES = [
+    "faithfulness",
+    "answer_relevancy",
+    "context_precision",
+    "context_recall",
+]
 
 load_dotenv(ROOT / ".env", override=True)
 
@@ -119,13 +127,7 @@ def answer_from_contexts(
 
 def write_summary(results: pd.DataFrame) -> None:
     """Write compact overall and per-category metric summaries."""
-    metric_names = [
-        "faithfulness",
-        "answer_relevancy",
-        "context_precision",
-        "context_recall",
-    ]
-    available_metrics = [name for name in metric_names if name in results.columns]
+    available_metrics = [name for name in METRIC_NAMES if name in results.columns]
     overall = results[available_metrics].mean(numeric_only=True)
     by_category = results.groupby("category")[available_metrics].mean(numeric_only=True)
 
@@ -146,19 +148,150 @@ def write_summary(results: pd.DataFrame) -> None:
     SUMMARY_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def main() -> int:
-    """Run retrieval, grounded generation and RAGAS scoring."""
-    records = load_records()
-    logger.info("Loaded %d UET evaluation records", len(records))
+def build_chat_model() -> ChatOpenAI:
+    """Single LLM factory shared by grounded answering and the RAGAS judge.
 
-    answer_llm = ChatOpenAI(
+    max_retries=5 lets the OpenAI client ride out brief provider or local
+    network drops instead of turning them into permanently unscored rows.
+    """
+    return ChatOpenAI(
         model=os.environ["LLM_MODEL"],
         api_key=os.environ["API_KEY"],
         base_url=os.environ["BASE_URL"],
         temperature=0.0,
         timeout=180,
-        max_retries=2,
+        max_retries=5,
     )
+
+
+def build_run_config() -> RunConfig:
+    """Retry-friendly executor config for the RAGAS judge jobs."""
+    return RunConfig(
+        timeout=int(os.getenv("RAGAS_TIMEOUT_SECONDS", "900")),
+        max_workers=int(os.getenv("RAGAS_MAX_WORKERS", "4")),
+        max_retries=10,
+        max_wait=120,
+    )
+
+
+def rows_missing_metrics(frame: pd.DataFrame) -> list[int]:
+    """Return indices of rows whose metric cells are blank or NaN."""
+    missing = []
+    for position in range(len(frame)):
+        row = frame.iloc[position]
+        if any(
+            pd.isna(row[name]) or str(row[name]).strip() == "" for name in METRIC_NAMES
+        ):
+            missing.append(position)
+    return missing
+
+
+def load_rescore_checkpoint(expected_rows: int) -> pd.DataFrame | None:
+    """Return cached judge results when they match the current missing rows."""
+    if not RESCORE_PARTIAL_PATH.exists():
+        return None
+    cached = pd.read_csv(RESCORE_PARTIAL_PATH)
+    if len(cached) != expected_rows:
+        logger.info(
+            "Ignoring stale rescore checkpoint (%d rows, expected %d)",
+            len(cached),
+            expected_rows,
+        )
+        return None
+    logger.info(
+        "Reusing rescore checkpoint with %d rows from %s",
+        len(cached),
+        RESCORE_PARTIAL_PATH,
+    )
+    return cached
+
+
+def rescore_missing_metrics() -> int:
+    """Re-judge only the rows whose scoring failed in a previous run.
+
+    Contexts and answers are reused from eval/ragas_results.csv, so this mode
+    needs only the judge LLM: no RAG service, no answer regeneration. Enable
+    with RAGAS_RESCORE=1 after a run whose metrics were cut short by network
+    or provider errors.
+
+    Judge results are checkpointed to eval/ragas_rescore_partial.csv before
+    merging, so a crashed merge resumes without paying for the judge calls
+    again; the checkpoint is deleted after a successful merge.
+    """
+    if not CSV_PATH.exists():
+        logger.error("No %s to rescore; run the full evaluation first.", CSV_PATH)
+        return 1
+
+    previous = pd.read_csv(CSV_PATH)
+    missing = rows_missing_metrics(previous)
+    if not missing:
+        logger.info("All %d rows are fully scored; nothing to rescore.", len(previous))
+        return 0
+    logger.info(
+        "Rescoring %d/%d rows with missing metrics: %s",
+        len(missing),
+        len(previous),
+        missing,
+    )
+
+    rescored = load_rescore_checkpoint(len(missing))
+    if rescored is None:
+        subset = previous.iloc[missing]
+        dataset = Dataset.from_dict(
+            {
+                "question": subset["user_input"].tolist(),
+                "ground_truth": subset["reference"].tolist(),
+                "answer": subset["response"].tolist(),
+                "contexts": [
+                    ast.literal_eval(str(raw)) for raw in subset["retrieved_contexts"]
+                ],
+            }
+        )
+        rescored = evaluate(
+            dataset,
+            metrics=[
+                faithfulness,
+                AnswerRelevancy(strictness=1),
+                context_precision,
+                context_recall,
+            ],
+            llm=LangchainLLMWrapper(build_chat_model()),
+            embeddings=LangchainEmbeddingsWrapper(
+                HuggingFaceEmbeddings(
+                    model_name=os.getenv("EMBEDDING_MODEL_NAME", "all-MiniLM-L6-v2")
+                )
+            ),
+            run_config=build_run_config(),
+        ).to_pandas()
+        # Checkpoint before merging: expensive judge results are never lost,
+        # even if a later step crashes.
+        rescored.to_csv(RESCORE_PARTIAL_PATH, index=False)
+        logger.info("Checkpointed judge results to %s", RESCORE_PARTIAL_PATH)
+
+    for name in METRIC_NAMES:
+        if name in rescored.columns:
+            previous.loc[missing, name] = rescored[name].to_numpy()
+
+    previous.to_csv(CSV_PATH, index=False)
+    write_summary(previous)
+    RESCORE_PARTIAL_PATH.unlink(missing_ok=True)
+
+    still_missing = rows_missing_metrics(pd.read_csv(CSV_PATH))
+    logger.info(
+        "Saved %s and %s; rows still missing metrics: %s",
+        CSV_PATH,
+        SUMMARY_PATH,
+        still_missing or "none",
+    )
+    return 0
+
+
+def main() -> int:
+    """Run retrieval, grounded generation and RAGAS scoring."""
+    records = load_records()
+    logger.info("Loaded %d UET evaluation records", len(records))
+
+    answer_llm = build_chat_model()
 
     answers: list[str] = []
     contexts_per_question: list[list[str]] = []
@@ -196,10 +329,7 @@ def main() -> int:
         ],
         llm=judge_llm,
         embeddings=judge_embeddings,
-        run_config=RunConfig(
-            timeout=int(os.getenv("RAGAS_TIMEOUT_SECONDS", "900")),
-            max_workers=int(os.getenv("RAGAS_MAX_WORKERS", "4")),
-        ),
+        run_config=build_run_config(),
     ).to_pandas()
 
     results.insert(1, "category", [record["category"] for record in records])
@@ -210,4 +340,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if os.getenv("RAGAS_RESCORE", "0") == "1":
+        raise SystemExit(rescore_missing_metrics())
     raise SystemExit(main())

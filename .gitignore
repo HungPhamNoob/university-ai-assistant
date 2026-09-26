@@ -75,6 +75,7 @@ support_speech.txt
 eval/*_results.json
 eval/*_results.md
 eval/*_results.csv
+eval/ragas_rescore_partial.csv
 eval/cli_test_done.flag
 eval/screenshots/
 
