@@ -1,0 +1,236 @@
+# ============================================
+# docker-compose.prod.yml
+# Production stack: ECR images + RDS (PostgreSQL) + Qdrant Cloud.
+#
+# Differences vs docker-compose.dev.yml:
+#   - Images are pulled from ECR (${ECR_REGISTRY}/uet-<service>:${IMAGE_TAG}),
+#     not built locally.
+#   - No postgres / qdrant containers: PostgreSQL runs on AWS RDS and
+#     Qdrant runs as a managed Qdrant Cloud cluster.
+#   - Only frontend (3000) and gateway/Kong (8080) expose ports; every
+#     backend service is reachable only inside the compose network.
+#   - Secrets are required with ${VAR:?message}: the stack refuses to
+#     start when a secret is missing instead of failing at runtime.
+#   - Redis is external: conversation connects to Redis Cloud through the
+#     credential-bearing REDIS_URL from the deployment environment.
+#
+# Usage:
+#   ./scripts/deploy-prod.sh [image-tag]
+# ============================================
+
+services:
+
+  # ---------- Frontend (Next.js on port 3000, served by nginx) ----------
+  frontend:
+    image: "${ECR_REGISTRY:?set ECR_REGISTRY}/uet-frontend:${IMAGE_TAG:-prod}"
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      # Same-origin API proxy: Next.js talks to Kong via the nginx proxy
+      # configured in services/frontend/default.conf.
+      FRONTEND_API_BASE_URL: "${FRONTEND_API_BASE_URL:-}"
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+      - uet-prod
+
+  # ---------- API Gateway (Kong in DB-less declarative mode) ----------
+  gateway:
+    image: "${ECR_REGISTRY:?set ECR_REGISTRY}/uet-gateway:${IMAGE_TAG:-prod}"
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_PORT:-8080}:8000"
+    environment:
+      # render-config.sh substitutes these two placeholders in kong.yml:
+      #   __JWT_SECRET__           -> JWT verify secret
+      #   __GATEWAY_SHARED_SECRET__-> X-Gateway-Token forwarded to backends
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY:?set JWT_SECRET_KEY}"
+      GATEWAY_SHARED_SECRET: "${GATEWAY_SHARED_SECRET:?set GATEWAY_SHARED_SECRET}"
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      agent:
+        condition: service_healthy
+      identity:
+        condition: service_healthy
+      rag:
+        condition: service_healthy
+      booking:
+        condition: service_healthy
+      conversation:
+        condition: service_healthy
+    networks:
+      - uet-prod
+
+  # ---------- AI Agent (LangGraph orchestrator) ----------
+  agent:
+    image: "${ECR_REGISTRY:?set ECR_REGISTRY}/uet-agent:${IMAGE_TAG:-prod}"
+    restart: unless-stopped
+    environment:
+      # Single Postgres instance (AWS RDS, database uet_ai_db).
+      POSTGRES_URI: postgresql+psycopg://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@${POSTGRES_HOST:?set POSTGRES_HOST}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:?set POSTGRES_DB}
+
+      # Primary LLM (production gateway).
+      LLM_MODEL: "${LLM_MODEL:?set LLM_MODEL}"
+      API_KEY: "${API_KEY:?set API_KEY}"
+      BASE_URL: "${BASE_URL:?set BASE_URL}"
+
+      # Backup LLM (optional).
+      API_KEY_2: "${API_KEY_2:-}"
+      API_KEY_2_BASE_URL: "${API_KEY_2_BASE_URL:-}"
+      API_KEY_2_MODEL: "${API_KEY_2_MODEL:-}"
+
+      # Hardened for production: only requests signed by Kong are accepted.
+      AGENT_REQUIRE_GATEWAY: "true"
+      GATEWAY_SHARED_SECRET: "${GATEWAY_SHARED_SECRET:?set GATEWAY_SHARED_SECRET}"
+
+      # Internal backend URLs (compose network hostnames).
+      RAG_SERVICE_URL: http://rag:8002
+      BOOKING_SERVICE_URL: http://booking:8003
+      CONVERSATION_SERVICE_URL: http://conversation:8004
+      INTERNAL_API_TOKEN: "${INTERNAL_API_TOKEN:?set INTERNAL_API_TOKEN}"
+
+      # search_subgraph (Tavily web search).
+      TAVILY_API_KEY: "${TAVILY_API_KEY:?set TAVILY_API_KEY}"
+
+      # LangSmith tracing (optional in production).
+      LANGSMITH_TRACING: "${LANGSMITH_TRACING:-false}"
+      LANGSMITH_ENDPOINT: "${LANGSMITH_ENDPOINT:-https://api.smith.langchain.com}"
+      LANGSMITH_API_KEY: "${LANGSMITH_API_KEY:-}"
+      LANGSMITH_PROJECT: "${LANGSMITH_PROJECT:-uet-hr-ai}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - uet-prod
+
+  # ---------- Identity (auth service) ----------
+  identity:
+    image: "${ECR_REGISTRY:?set ECR_REGISTRY}/uet-identity:${IMAGE_TAG:-prod}"
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: "${POSTGRES_HOST:?set POSTGRES_HOST}"
+      POSTGRES_PORT: "${POSTGRES_PORT:-5432}"
+      POSTGRES_USER: "${POSTGRES_USER:?set POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB:?set POSTGRES_DB}"
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY:?set JWT_SECRET_KEY}"
+      JWT_EXPIRE_MINUTES: "${JWT_EXPIRE_MINUTES:-60}"
+      JWT_ISSUER: "${JWT_ISSUER:-uet-identity}"
+      GATEWAY_SHARED_SECRET: "${GATEWAY_SHARED_SECRET:?set GATEWAY_SHARED_SECRET}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health').read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - uet-prod
+
+  # ---------- RAG (retrieval service, Qdrant Cloud backend) ----------
+  rag:
+    image: "${ECR_REGISTRY:?set ECR_REGISTRY}/uet-rag:${IMAGE_TAG:-prod}"
+    restart: unless-stopped
+    environment:
+      # Managed Qdrant Cloud cluster (secrets required).
+      QDRANT_URL: "${QDRANT_URL:?set QDRANT_URL}"
+      QDRANT_API_KEY: "${QDRANT_API_KEY:?set QDRANT_API_KEY}"
+      QDRANT_KB_COLLECTION: "${QDRANT_KB_COLLECTION:-uet_hr_docs}"
+      QDRANT_CACHE_COLLECTION: "${QDRANT_CACHE_COLLECTION:-uet_hr_cache}"
+
+      # Embedding & reranker.
+      VECTOR_SIZE: "${VECTOR_SIZE:-384}"
+      EMBEDDING_MODEL_NAME: "${EMBEDDING_MODEL_NAME:-all-MiniLM-L6-v2}"
+      RERANKER_MODEL_NAME: "${RERANKER_MODEL_NAME:-cross-encoder/ms-marco-MiniLM-L-6-v2}"
+      CHUNK_SIMILARITY_THRESHOLD: "${CHUNK_SIMILARITY_THRESHOLD:-0.75}"
+
+      # HyDE fallback (reuses the primary chat LLM by default).
+      # The literal value "LLM_MODEL" is a sentinel resolved in rag/api.py.
+      HYDE_ENABLED: "${HYDE_ENABLED:-true}"
+      HYDE_SCORE_THRESHOLD: "${HYDE_SCORE_THRESHOLD:-0.65}"
+      HYDE_LLM_MODEL: "${HYDE_LLM_MODEL:-LLM_MODEL}"
+      LLM_MODEL: "${LLM_MODEL:?set LLM_MODEL}"
+      API_KEY: "${API_KEY:?set API_KEY}"
+      BASE_URL: "${BASE_URL:?set BASE_URL}"
+
+      # Cache collection settings.
+      CACHE_TTL_SECONDS: "${CACHE_TTL_SECONDS:-3600}"
+      CACHE_SIMILARITY_THRESHOLD: "${CACHE_SIMILARITY_THRESHOLD:-0.95}"
+
+      # Document storage: local disk by default, s3 in production
+      # (S3DocumentStorage uses the ECS task role credentials).
+      STORAGE_DIR: "${STORAGE_DIR:-data/uploads}"
+
+      LANGSMITH_TRACING: "${LANGSMITH_TRACING:-false}"
+      LANGSMITH_API_KEY: "${LANGSMITH_API_KEY:-}"
+      LANGSMITH_PROJECT: "${LANGSMITH_PROJECT:-uet-hr-ai}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health').read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - uet-prod
+
+  # ---------- Booking (meeting-room booking service) ----------
+  booking:
+    image: "${ECR_REGISTRY:?set ECR_REGISTRY}/uet-booking:${IMAGE_TAG:-prod}"
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: "${POSTGRES_HOST:?set POSTGRES_HOST}"
+      POSTGRES_PORT: "${POSTGRES_PORT:-5432}"
+      POSTGRES_USER: "${POSTGRES_USER:?set POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB:?set POSTGRES_DB}"
+      INTERNAL_API_TOKEN: "${INTERNAL_API_TOKEN:?set INTERNAL_API_TOKEN}"
+      GATEWAY_SHARED_SECRET: "${GATEWAY_SHARED_SECRET:?set GATEWAY_SHARED_SECRET}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8003/health').read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - uet-prod
+
+  # ---------- Conversation (history service) ----------
+  conversation:
+    image: "${ECR_REGISTRY:?set ECR_REGISTRY}/uet-conversation:${IMAGE_TAG:-prod}"
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: "${POSTGRES_HOST:?set POSTGRES_HOST}"
+      POSTGRES_PORT: "${POSTGRES_PORT:-5432}"
+      POSTGRES_USER: "${POSTGRES_USER:?set POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB:?set POSTGRES_DB}"
+      INTERNAL_API_TOKEN: "${INTERNAL_API_TOKEN:?set INTERNAL_API_TOKEN}"
+      GATEWAY_SHARED_SECRET: "${GATEWAY_SHARED_SECRET:?set GATEWAY_SHARED_SECRET}"
+      # Managed exact-match cache. No Redis container is part of this stack.
+      REDIS_ENABLED: "${REDIS_ENABLED:-true}"
+      REDIS_URL: "${REDIS_URL:?set REDIS_URL}"
+      REDIS_TTL_SECONDS: "${REDIS_TTL_SECONDS:-300}"
+      LLM_MODEL: "${LLM_MODEL:?set LLM_MODEL}"
+      API_KEY: "${API_KEY:?set API_KEY}"
+      BASE_URL: "${BASE_URL:?set BASE_URL}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8004/health').read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - uet-prod
+
+networks:
+  uet-prod:
+    driver: bridge

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
+  <title>UET Trợ lý AI</title>
+  <link rel="stylesheet" href="css/chat.css" />
+</head>
+<body>
+  <!-- ============================ App ============================ -->
+  <div id="app-view" class="app-view hidden">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/>
+          </svg>
+        </span>
+        <span class="brand-text">
+          <span class="brand-name">UET Trợ lý</span>
+          <span class="brand-sub">trợ lý học thuật và vận hành</span>
+        </span>
+      </div>
+
+      <button id="new-chat-btn" class="btn btn-new-chat" type="button">
+        <span class="btn-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+        </span>
+        Cuộc trò chuyện mới
+      </button>
+
+      <!-- Mở modal xem các sơ đồ kiến trúc của hệ thống -->
+      <button id="arch-open-btn" class="btn btn-sidebar-ghost" type="button"
+              title="Xem các sơ đồ kiến trúc hệ thống">
+        <span class="btn-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="8" height="6" rx="1"/>
+            <rect x="13" y="15" width="8" height="6" rx="1"/>
+            <path d="M7 9v3a2 2 0 0 0 2 2h4"/>
+          </svg>
+        </span>
+        Sơ đồ kiến trúc
+      </button>
+
+      <nav class="sidebar-history" aria-label="Lịch sử trò chuyện">
+        <span class="sidebar-label">Lịch sử</span>
+        <ul id="conversation-list" class="conversation-list"></ul>
+      </nav>
+
+      <div class="sidebar-user">
+        <span id="user-avatar" class="avatar" aria-hidden="true"></span>
+        <span class="user-meta">
+          <span id="user-name" class="user-name"></span>
+          <span id="user-email" class="user-email"></span>
+        </span>
+        <button id="user-action" class="btn btn-ghost btn-user-action" type="button" aria-label="Đăng xuất">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>
+          </svg>
+          <span id="user-action-label">Đăng xuất</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="main-header">
+        <button id="menu-btn" class="btn btn-icon-only menu-btn" type="button" aria-label="Mở menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 7h16M4 12h16M4 17h16"/>
+          </svg>
+        </button>
+        <div class="header-titles">
+          <h1 id="header-title" class="header-title">Cuộc trò chuyện mới</h1>
+          <p id="header-status" class="header-status" aria-live="polite"></p>
+        </div>
+        <!-- Tóm tắt episodic memory ngay lập tức (không chờ ngưỡng 20 tin) -->
+        <button id="summarize-btn" class="btn btn-ghost btn-summarize" type="button"
+                title="Tóm tắt cuộc trò chuyện thành episodic memory ngay lập tức">
+          <span class="btn-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/>
+            </svg>
+          </span>
+          <span id="summarize-label">Tóm tắt cuộc trò chuyện</span>
+        </button>
+      </header>
+
+      <section id="chat-scroll" class="chat-scroll">
+        <div id="chat-log" class="chat-log" role="log" aria-live="polite">
+          <div id="empty-state" class="empty-state">
+            <div class="empty-hero">
+              <span class="empty-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/>
+                </svg>
+              </span>
+              <h2>Hôm nay cần hỗ trợ gì?</h2>
+              <p>Tra cứu tri thức UET, tìm phòng phù hợp, quản lý lịch đặt và kiểm chứng thông tin mới.</p>
+              <div class="suggestions">
+                <button type="button" class="suggestion-chip">Phòng nào có video conference?</button>
+                <button type="button" class="suggestion-chip">UET hướng dẫn dùng AI có trách nhiệm thế nào?</button>
+                <button type="button" class="suggestion-chip">Tin công nghệ mới nhất</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <button id="scroll-down-btn" class="scroll-down-btn hidden" type="button" aria-label="Cuộn xuống cuối">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 5v14M6 13l6 6 6-6"/>
+        </svg>
+      </button>
+
+      <div class="composer-wrap">
+        <form id="chat-form" class="composer">
+          <textarea id="chat-input" rows="1"
+            placeholder="Hỏi về UET, phòng học, đặt lịch hoặc thông tin mới…"
+            autocomplete="off" aria-label="Tin nhắn"></textarea>
+          <button id="send-btn" class="btn btn-send" type="submit" aria-label="Gửi">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/>
+            </svg>
+            <span>Gửi</span>
+          </button>
+          <button id="stop-btn" class="btn btn-stop hidden" type="button" aria-label="Dừng">
+            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+              <rect x="7" y="7" width="10" height="10" rx="1.5"/>
+            </svg>
+            <span>Dừng</span>
+          </button>
+        </form>
+        <p class="composer-hint">Enter để gửi · Shift+Enter để xuống dòng</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- ============================ Auth ============================ -->
+  <div id="auth-view" class="auth-view">
+    <div class="auth-card">
+      <div class="auth-brand">
+        <span class="brand-mark brand-mark-lg" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/>
+          </svg>
+        </span>
+        <h1>UET Trợ lý AI</h1>
+        <p>Tri thức UET, phòng học, lịch đặt và thông tin thời sự trong một giao diện.</p>
+      </div>
+
+      <form id="auth-form" class="auth-form" novalidate>
+        <h2 id="auth-title" class="auth-title">Chào mừng trở lại</h2>
+        <p id="auth-subtitle" class="auth-subtitle">Đăng nhập để tiếp tục với trợ lý AI của bạn.</p>
+
+        <!-- Mode switch: the primary affordance, clearer than a text link. -->
+        <div class="auth-tabs" role="tablist" aria-label="Đăng nhập hoặc đăng ký">
+          <button id="auth-tab-login" class="auth-tab is-selected" type="button" role="tab"
+                  aria-selected="true" aria-controls="auth-form">Đăng nhập</button>
+          <button id="auth-tab-register" class="auth-tab" type="button" role="tab"
+                  aria-selected="false" aria-controls="auth-form">Đăng ký</button>
+        </div>
+
+        <div id="name-field" class="field hidden">
+          <label for="auth-name">Họ và tên</label>
+          <input id="auth-name" type="text" autocomplete="name" aria-describedby="auth-name-error" />
+          <p id="auth-name-error" class="field-error hidden" role="alert"></p>
+        </div>
+
+        <div class="field">
+          <label for="auth-email">Email</label>
+          <input id="auth-email" type="email" autocomplete="email" required
+                 aria-describedby="auth-email-error" />
+          <p id="auth-email-error" class="field-error hidden" role="alert"></p>
+        </div>
+
+        <div class="field">
+          <label for="auth-password">Mật khẩu</label>
+          <div class="input-wrap">
+            <input id="auth-password" type="password" autocomplete="current-password" required
+                   aria-describedby="auth-password-error auth-password-hint" />
+            <button id="auth-toggle-password" class="btn-toggle-password" type="button"
+                    aria-label="Hiện mật khẩu" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M1.5 12S5.5 5.5 12 5.5 22.5 12 22.5 12 18.5 18.5 12 18.5 1.5 12 1.5 12z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <p id="auth-password-hint" class="field-hint hidden">Tối thiểu 6 ký tự.</p>
+          <div id="auth-password-meter" class="pw-meter hidden" aria-hidden="true"><span></span></div>
+          <p id="auth-password-error" class="field-error hidden" role="alert"></p>
+        </div>
+
+        <p id="auth-error" class="auth-error hidden" role="alert"></p>
+
+        <button id="auth-submit" class="btn btn-primary btn-block" type="submit">
+          <span class="btn-label">Đăng nhập</span>
+        </button>
+      </form>
+
+      <p class="auth-switch">
+        <span id="auth-switch-text">Chưa có tài khoản?</span>
+        <button id="auth-switch-btn" class="link-btn" type="button">Đăng ký</button>
+      </p>
+
+      <div class="auth-divider"><span>hoặc</span></div>
+
+      <button id="guest-btn" class="btn btn-ghost btn-block" type="button">Tiếp tục không cần tài khoản</button>
+      <p id="guest-hint" class="auth-guest-hint">
+        Chế độ khách: lịch sử trò chuyện chỉ gắn với trình duyệt này và không đồng bộ khi bạn đăng nhập.
+      </p>
+
+      <p id="auth-mode-line" class="auth-mode-line"></p>
+    </div>
+  </div>
+
+  <div id="scrim" class="scrim"></div>
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <!-- Modal sơ đồ kiến trúc (mở từ nút "Sơ đồ kiến trúc" trong sidebar) -->
+  <div id="arch-modal" class="modal hidden" role="dialog" aria-modal="true"
+       aria-label="Sơ đồ kiến trúc hệ thống">
+    <div class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <div class="modal-head">
+        <strong>Sơ đồ kiến trúc hệ thống</strong>
+        <button id="arch-close-btn" class="btn btn-ghost" type="button" aria-label="Đóng">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body" id="arch-list"></div>
+    </div>
+  </div>
+
+  <!-- Order matters: config first, then shared helpers, then feature modules. -->
+  <script src="js/runtime-config.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/markdown.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/chat.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/architecture.js"></script>
+</body>
+</html>

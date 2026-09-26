@@ -1,0 +1,103 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.secret
+secrets.json
+credentials.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+.aws/
+.kube/
+.netrc
+.npmrc
+.pypirc
+
+# Python environments, caches, packages and coverage
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+torchinductor_*/
+
+# Runtime state, logs and local databases
+logs/
+scripts/logs/
+tmp/
+*.log
+error.txt
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+*.sqlite3
+data/*
+!data/UET_HR.pdf
+
+# Local reference material and legacy prototypes
+/reference/
+/problems/
+/src/
+/agent/
+
+# Personal notes and presentation drafts
+speech.md
+practice.md
+support_speech.txt
+
+# LaTeX (personal documents compiled in the repo root — not part of the project)
+/main.tex
+*.aux
+*.fls
+*.fdb_latexmk
+*.out
+*.toc
+*.bbl
+*.blg
+*.synctex.gz
+
+# Generated evaluation output
+eval/*_results.json
+eval/*_results.md
+eval/*_results.csv
+eval/category_average_metrics.md
+eval/cli_test_done.flag
+eval/screenshots/
+
+# Terraform local state and plans
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+terraform.tfvars
+*.auto.tfvars
+.terraformrc
+terraform.rc
+crash.log
+crash.*.log
+
+# Editors, browser automation and operating-system noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.playwright-mcp/
+.claude/settings.local.json
+.claude/skills/*
+!.claude/skills/coding-simple/
+!.claude/skills/coding-simple/**
+!.claude/skills/frontend-design/
+!.claude/skills/frontend-design/**

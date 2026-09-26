@@ -1,0 +1,183 @@
+[
+  {
+    "question": "Is the UET Human Rights & Academic Community Policy an officially issued university regulation?",
+    "ground_truth": "No. It is a generated reference draft for demonstration, discussion, policy design and software-data modeling. Official Vietnamese law and formally approved UET or VNU instruments prevail.",
+    "category": "Factual"
+  },
+  {
+    "question": "How does the document describe UET's institutional relationship and mission?",
+    "ground_truth": "UET is described as a member university of Vietnam National University, Hanoi, focused on high-quality human-resource development, advanced science and technology, and contribution to a knowledge society.",
+    "category": "Factual"
+  },
+  {
+    "question": "What core values and action slogan are associated with UET?",
+    "ground_truth": "The core values are High quality, Innovation, Partnership and Humanity. The action slogan is Creative Thinking for the Future.",
+    "category": "Factual"
+  },
+  {
+    "question": "Who and what activities fall within the framework's scope?",
+    "ground_truth": "It covers students, lecturers, researchers, staff, visitors, interns, volunteers, contractors, research participants, guests and partner personnel in UET-connected classrooms, labs, offices, online platforms, repositories, fieldwork, competitions, conferences, exchanges, organizations, recruitment and partner sites.",
+    "category": "Relational"
+  },
+  {
+    "question": "What evidence should support a high-impact selection or academic decision?",
+    "ground_truth": "The criteria should be published when feasible, conflicts of interest should be disclosed, and the responsible unit should retain enough evidence to explain the criteria and show that the decision was not arbitrary.",
+    "category": "Relational"
+  },
+  {
+    "question": "How should serious harassment allegations differ from low-risk misunderstandings?",
+    "ground_truth": "A low-risk misunderstanding may use informal resolution when all parties agree and no serious power imbalance exists. Serious, repeated, threatening, sexual or retaliatory conduct requires a documented formal route and protective measures.",
+    "category": "Multi-hop"
+  },
+  {
+    "question": "What forms of subtle retaliation should reviewers consider?",
+    "ground_truth": "Examples include unexplained exclusion from meetings, denial of previously available resources, hostile references and sudden supervision changes. Reviewers should use timelines and objective records.",
+    "category": "Factual"
+  },
+  {
+    "question": "What are the limits of academic freedom in the reference framework?",
+    "ground_truth": "Academic freedom supports lawful inquiry, criticism and association but does not permit fabricated evidence, disclosure of confidential data, harassment, bypassing safety controls or presenting personal opinion as an official university position.",
+    "category": "Relational"
+  },
+  {
+    "question": "What must students disclose about generative AI use?",
+    "ground_truth": "Students and researchers should disclose generative AI or automated-tool use when the course, journal, supervisor or research protocol requires it.",
+    "category": "Factual"
+  },
+  {
+    "question": "What practices make research workflows reproducible?",
+    "ground_truth": "Examples include version-controlled code, dated laboratory notebooks, calibration records, data dictionaries, model cards, experiment manifests and review of critical analysis scripts.",
+    "category": "Factual"
+  },
+  {
+    "question": "Why is consent described as a process rather than only a signature?",
+    "ground_truth": "Participants must understand collection, purpose, activities, risks and choices, and material study changes may require renewed communication or approval.",
+    "category": "Analytical"
+  },
+  {
+    "question": "What should a data-management plan identify?",
+    "ground_truth": "It should identify data owners, storage locations, access rules, backup, appropriate encryption, sharing conditions, retention and secure disposal.",
+    "category": "Factual"
+  },
+  {
+    "question": "What safeguards are required when using AI for high-impact university decisions?",
+    "ground_truth": "AI output must be validated, confidential data must not be uploaded without authorization and safeguards, material use should be documented, relevant failure modes should be tested, and a responsible human must remain accountable. AI should not silently become the sole basis for an adverse decision.",
+    "category": "Multi-hop"
+  },
+  {
+    "question": "May a student run security testing against a university system out of technical curiosity?",
+    "ground_truth": "No. Security testing requires explicit authorization and a defined scope; technical curiosity does not justify unauthorized access.",
+    "category": "Factual"
+  },
+  {
+    "question": "How should reasonable accommodation balance access and academic standards?",
+    "ground_truth": "The process should identify the barrier, essential requirement and feasible adjustment, improve access while preserving essential academic, safety and professional requirements, and limit disclosure of sensitive information.",
+    "category": "Relational"
+  },
+  {
+    "question": "What should happen after a laboratory near miss where no one was injured?",
+    "ground_truth": "It should still be reported and reviewed. The response may stop the experiment, review supervision and deadline pressure, retrain users, inspect equipment and clarify consequences for bypassing safeguards.",
+    "category": "Multi-hop"
+  },
+  {
+    "question": "How should UET units handle a complaint involving a conflict of interest?",
+    "ground_truth": "They should provide an alternative reporting route, record the allegation and immediate risks, limit disclosure, protect good-faith reporters from retaliation and route review to appropriately independent people.",
+    "category": "Multi-hop"
+  },
+  {
+    "question": "Why can a rise in complaint counts not be interpreted alone?",
+    "ground_truth": "It may indicate worsening behavior, improved trust in reporting systems, or both. Quantitative indicators should be combined with case review and user feedback.",
+    "category": "Analytical"
+  },
+  {
+    "question": "What does RACI mean in the implementation checklist?",
+    "ground_truth": "It assigns who is Responsible for day-to-day action, Accountable for the outcome, Consulted before key decisions and Informed. High-impact matters should avoid assigning all four roles to one person when independent review is feasible.",
+    "category": "Factual"
+  },
+  {
+    "question": "Which fields make up the canonical UET room record?",
+    "ground_truth": "The reference model lists room_id, room_code, room_name, site_code, floor, room_type, capacity, status, accessible, has_projector, notes, created_at, updated_at and version.",
+    "category": "Factual"
+  },
+  {
+    "question": "What do ACTIVE, MAINTENANCE, RESTRICTED and ARCHIVED mean for a room?",
+    "ground_truth": "ACTIVE rooms may be scheduled if other checks pass. MAINTENANCE rooms are temporarily unavailable. RESTRICTED rooms require explicit authorization. ARCHIVED rooms are retained for history and cannot receive new normal scheduling.",
+    "category": "Relational"
+  },
+  {
+    "question": "In what order should room suitability normally be evaluated?",
+    "ground_truth": "Evaluate room status, time overlap, capacity, room type, required equipment, access or safety restrictions, then temporary maintenance blocks.",
+    "category": "Factual"
+  },
+  {
+    "question": "Which illustrative ACTIVE meeting room has the smallest capacity?",
+    "ground_truth": "GD3-402 is an ACTIVE MEETING room at site GD3 with capacity 16 and video-conference equipment.",
+    "category": "Multi-hop"
+  },
+  {
+    "question": "Which illustrative rooms provide video-conference equipment?",
+    "ground_truth": "GD3-402 at Giang duong 3 has capacity 16 and HL-C201 at Hoa Lac has capacity 18; both are ACTIVE MEETING rooms in the sample registry.",
+    "category": "Factual"
+  },
+  {
+    "question": "Which rooms are in MAINTENANCE in the illustrative registry?",
+    "ground_truth": "GD3-302, a 36-seat computer laboratory, and HL-B202, a 24-seat robotics laboratory, are marked MAINTENANCE.",
+    "category": "Factual"
+  },
+  {
+    "question": "Which rooms are RESTRICTED and why does that matter?",
+    "ground_truth": "KM-301 is an electronics laboratory and HL-B201 is a robotics laboratory; both are RESTRICTED, so normal booking is insufficient and explicit authorization or applicable access rules are required.",
+    "category": "Relational"
+  },
+  {
+    "question": "What is the highest-capacity ACTIVE room in the illustrative registry?",
+    "ground_truth": "HL-A101 is an ACTIVE LECTURE room at the Hoa Lac site with capacity 150 and projector, microphone and capture equipment.",
+    "category": "Multi-hop"
+  },
+  {
+    "question": "Can class DSA-01 with 118 students be assigned to GD3-201?",
+    "ground_truth": "No. GD3-201 has capacity 80, so assigning DSA-01 with expected size 118 must fail the capacity check before confirmation.",
+    "category": "Analytical"
+  },
+  {
+    "question": "Why must a second meeting in HL-A102 on Friday from 09:30 to 10:30 be rejected?",
+    "ground_truth": "It overlaps the confirmed ML-01 meeting in HL-A102 on Friday from 09:00 to 10:50, violating the no-overlap invariant.",
+    "category": "Multi-hop"
+  },
+  {
+    "question": "Why should a class not store one room directly?",
+    "ground_truth": "A class can meet repeatedly, move rooms, run hybrid sessions or add exams. Linking rooms through class-meeting or reservation records preserves class identity and makes time conflicts and history manageable.",
+    "category": "Analytical"
+  },
+  {
+    "question": "When should room deletion become archival instead of hard deletion?",
+    "ground_truth": "If a room has dependent or historical records, it should be archived or deactivated so it cannot receive new scheduling while past classes, reservations, maintenance and audit history remain queryable. Hard deletion is mainly for erroneous unreferenced records.",
+    "category": "Relational"
+  },
+  {
+    "question": "What should a material room audit event record?",
+    "ground_truth": "It should record event_id, actor_ref, action, entity_type, entity_id, timestamp, before_summary, after_summary, reason and a correlation identifier for cross-service requests, without copying unnecessary sensitive personal data.",
+    "category": "Factual"
+  },
+  {
+    "question": "Can a scheduler alter room capacity or erase room history?",
+    "ground_truth": "No. A scheduler can manage meetings and reservations but structural room attributes belong to a facility administrator, and scheduling capability does not authorize erasing room history.",
+    "category": "Relational"
+  },
+  {
+    "question": "What is the illustrative schedule for class AI-01?",
+    "ground_truth": "AI-01, Introduction to Artificial Intelligence, has size 78 and a CONFIRMED meeting on Monday from 09:00 to 10:50 in room GD3-201.",
+    "category": "Factual"
+  },
+  {
+    "question": "What equipment and status are listed for GD3-301?",
+    "ground_truth": "GD3-301 is an ACTIVE COMPUTER_LAB at site GD3 with capacity 42, 42 workstations and wired network.",
+    "category": "Factual"
+  },
+  {
+    "question": "What exact street address does the sample registry give for room GD3-402?",
+    "ground_truth": "The reference registry does not provide a street address for GD3-402. It only associates the room with site code GD3, described as Giang duong 3, and warns that room-level records are illustrative.",
+    "category": "Negative"
+  }
+]
+

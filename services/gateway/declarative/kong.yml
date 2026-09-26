@@ -1,0 +1,245 @@
+_format_version: "3.0"
+_transform: true
+
+# ============================================================
+# services/gateway/declarative/kong.yml
+# Kong DB-less declarative configuration.
+#
+# Flow:
+#   1. Identity service issues JWTs (iss = uet-identity, HS256).
+#   2. Kong jwt plugin validates signature + expiry on protected routes.
+#   3. Kong post-function plugin decodes the claims and injects the
+#      X-User-Id / X-User-Email headers for the upstream services.
+#   4. Upstream services only read X-User-* (+ X-Gateway-Token).
+#
+# The jwt secret below MUST match JWT_SECRET_KEY of the Identity service.
+# Placeholders rendered by render-config.sh at container startup:
+#   __JWT_SECRET__ / __GATEWAY_SHARED_SECRET__  <- secrets from env vars
+#   __<SVC>_UPSTREAM__                          <- upstream host per service;
+#     default = compose service name (full-docker mode). scripts/local.sh
+#     overrides them to host.docker.internal because the 5 Python services
+#     run natively on the host there, not as containers.
+# ============================================================
+
+plugins:
+  # ----------------------------------------------------------
+  # Global plugins (every route)
+  # ----------------------------------------------------------
+  - name: cors
+    config:
+      origins: ["*"]
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+      headers: ["Accept", "Authorization", "Content-Type", "X-Gateway-Token"]
+      max_age: 3600
+  - name: rate-limiting
+    config:
+      minute: 120
+      policy: local
+
+  # ----------------------------------------------------------
+  # JWT validation on protected routes (public routes stay open)
+  # ----------------------------------------------------------
+  - name: jwt
+    route: identity-protected
+    config:
+      claims_to_verify: [exp]
+  - name: jwt
+    route: agent-chat
+    config:
+      claims_to_verify: [exp]
+  - name: jwt
+    route: booking-routes
+    config:
+      claims_to_verify: [exp]
+  - name: jwt
+    route: conversation-routes
+    config:
+      claims_to_verify: [exp]
+
+  # ----------------------------------------------------------
+  # Header injection AFTER JWT validation: decode the claims and
+  # forward a trusted X-User-* context plus the shared gateway token.
+  # JWT payloads are base64URL without padding, so normalize them
+  # before base64-decoding. One identical block per protected route.
+  # ----------------------------------------------------------
+
+  - name: post-function
+    route: identity-protected
+    config:
+      access:
+        - |
+          local auth = kong.request.get_header("Authorization")
+          if not auth then return end
+          local token = auth:match("[Bb]earer%s+(.+)") or auth
+          local payload = token:match("^[^.]+%.([^.]+)%.[^.]*$")
+          if not payload then return end
+          local remainder = #payload % 4
+          if remainder == 2 then
+            payload = payload .. "=="
+          elseif remainder == 3 then
+            payload = payload .. "="
+          elseif remainder ~= 0 then
+            return
+          end
+          payload = payload:gsub("-", "+"):gsub("_", "/")
+          local decoded = ngx.decode_base64(payload)
+          if not decoded then return end
+          local user_id = decoded:match('"sub"%s*:%s*"([^"]*)"')
+          local email = decoded:match('"email"%s*:%s*"([^"]*)"')
+          kong.service.request.set_header("X-Gateway-Token", "__GATEWAY_SHARED_SECRET__")
+          if user_id then kong.service.request.set_header("X-User-Id", user_id) end
+          if email then kong.service.request.set_header("X-User-Email", email) end
+
+  - name: post-function
+    route: agent-chat
+    config:
+      access:
+        - |
+          local auth = kong.request.get_header("Authorization")
+          if not auth then return end
+          local token = auth:match("[Bb]earer%s+(.+)") or auth
+          local payload = token:match("^[^.]+%.([^.]+)%.[^.]*$")
+          if not payload then return end
+          local remainder = #payload % 4
+          if remainder == 2 then
+            payload = payload .. "=="
+          elseif remainder == 3 then
+            payload = payload .. "="
+          elseif remainder ~= 0 then
+            return
+          end
+          payload = payload:gsub("-", "+"):gsub("_", "/")
+          local decoded = ngx.decode_base64(payload)
+          if not decoded then return end
+          local user_id = decoded:match('"sub"%s*:%s*"([^"]*)"')
+          local email = decoded:match('"email"%s*:%s*"([^"]*)"')
+          kong.service.request.set_header("X-Gateway-Token", "__GATEWAY_SHARED_SECRET__")
+          if user_id then kong.service.request.set_header("X-User-Id", user_id) end
+          if email then kong.service.request.set_header("X-User-Email", email) end
+
+  - name: post-function
+    route: booking-routes
+    config:
+      access:
+        - |
+          local auth = kong.request.get_header("Authorization")
+          if not auth then return end
+          local token = auth:match("[Bb]earer%s+(.+)") or auth
+          local payload = token:match("^[^.]+%.([^.]+)%.[^.]*$")
+          if not payload then return end
+          local remainder = #payload % 4
+          if remainder == 2 then
+            payload = payload .. "=="
+          elseif remainder == 3 then
+            payload = payload .. "="
+          elseif remainder ~= 0 then
+            return
+          end
+          payload = payload:gsub("-", "+"):gsub("_", "/")
+          local decoded = ngx.decode_base64(payload)
+          if not decoded then return end
+          local user_id = decoded:match('"sub"%s*:%s*"([^"]*)"')
+          local email = decoded:match('"email"%s*:%s*"([^"]*)"')
+          kong.service.request.set_header("X-Gateway-Token", "__GATEWAY_SHARED_SECRET__")
+          if user_id then kong.service.request.set_header("X-User-Id", user_id) end
+          if email then kong.service.request.set_header("X-User-Email", email) end
+
+  - name: post-function
+    route: conversation-routes
+    config:
+      access:
+        - |
+          local auth = kong.request.get_header("Authorization")
+          if not auth then return end
+          local token = auth:match("[Bb]earer%s+(.+)") or auth
+          local payload = token:match("^[^.]+%.([^.]+)%.[^.]*$")
+          if not payload then return end
+          local remainder = #payload % 4
+          if remainder == 2 then
+            payload = payload .. "=="
+          elseif remainder == 3 then
+            payload = payload .. "="
+          elseif remainder ~= 0 then
+            return
+          end
+          payload = payload:gsub("-", "+"):gsub("_", "/")
+          local decoded = ngx.decode_base64(payload)
+          if not decoded then return end
+          local user_id = decoded:match('"sub"%s*:%s*"([^"]*)"')
+          local email = decoded:match('"email"%s*:%s*"([^"]*)"')
+          kong.service.request.set_header("X-Gateway-Token", "__GATEWAY_SHARED_SECRET__")
+          if user_id then kong.service.request.set_header("X-User-Id", user_id) end
+          if email then kong.service.request.set_header("X-User-Email", email) end
+
+consumers:
+  - username: uet-users
+    jwt_secrets:
+      - key: uet-identity
+        secret: __JWT_SECRET__
+        algorithm: HS256
+
+services:
+  # ----------------------------------------------------------
+  # Identity service
+  # ----------------------------------------------------------
+  - name: identity-service
+    url: http://__IDENTITY_UPSTREAM__:8001
+    routes:
+      # Public routes (no JWT required)
+      - name: identity-public
+        paths:
+          - /auth/register
+          - /auth/login
+        strip_path: false
+        methods: [OPTIONS, POST]
+      # Protected route (JWT required, gateway injects X-User-Id)
+      - name: identity-protected
+        paths:
+          - /auth/me
+        strip_path: false
+        methods: [OPTIONS, GET]
+
+  # ----------------------------------------------------------
+  # Agent service (chat SSE + HITL resume)
+  # ----------------------------------------------------------
+  - name: agent-service
+    url: http://__AGENT_UPSTREAM__:8000
+    routes:
+      - name: agent-chat
+        paths:
+          - /api/chat
+        strip_path: false
+
+  # ----------------------------------------------------------
+  # RAG service (knowledge base search + document upload)
+  # ----------------------------------------------------------
+  - name: rag-service
+    url: http://__RAG_UPSTREAM__:8002
+    routes:
+      - name: rag-kb
+        paths:
+          - /api/kb
+        strip_path: false
+        methods: [OPTIONS, GET]
+
+  # ----------------------------------------------------------
+  # Booking service
+  # ----------------------------------------------------------
+  - name: booking-service
+    url: http://__BOOKING_UPSTREAM__:8003
+    routes:
+      - name: booking-routes
+        paths:
+          - /api/business/bookings
+        strip_path: false
+
+  # ----------------------------------------------------------
+  # Conversation service
+  # ----------------------------------------------------------
+  - name: conversation-service
+    url: http://__CONVERSATION_UPSTREAM__:8004
+    routes:
+      - name: conversation-routes
+        paths:
+          - /conversations
+        strip_path: false

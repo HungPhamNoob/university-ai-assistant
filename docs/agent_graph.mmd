@@ -1,0 +1,56 @@
+flowchart TB
+    classDef routerNode fill:#ede7f6,stroke:#5e35b1,stroke-width:2px,color:#311b92;
+    classDef agentNode fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1;
+    classDef toolNode fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#e65100;
+    classDef hitlNode fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#b71c1c;
+    classDef extNode fill:#eceff1,stroke:#546e7a,stroke-width:1px,color:#263238;
+    classDef ioNode fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20;
+
+    START([▶ START]) --> router
+    router{"router<br/>LLM → JSON {intent}"}:::routerNode
+
+    router -- "general_chat" --> chat_node
+    router -- "faq_agent" --> faq
+    router -- "search_agent" --> search
+    router -- "booking_agent" --> booking
+    router -- "không rõ intent" --> END
+
+    chat_node["chat_node<br/>LLM + services/agent/prompts/general.md<br/>(trả lời trực tiếp)"]:::agentNode
+
+    subgraph faq["FAQ subgraph — ReAct"]
+        faq_llm["agent LLM<br/>services/agent/prompts/faq.md"]:::agentNode
+        faq_tool["search_kb"]:::toolNode
+        faq_llm -- "tool_calls" --> faq_tool
+        faq_tool -- "ToolMessage" --> faq_llm
+    end
+    faq_tool -.->|HTTP| RAG[("RAG service :8002<br/>Hybrid + Rerank + Cache")]:::extNode
+
+    subgraph search["Search subgraph — ReAct"]
+        s_llm["agent LLM<br/>web search prompt"]:::agentNode
+        s_tool["search_web"]:::toolNode
+        s_llm -- "tool_calls" --> s_tool
+        s_tool -- "ToolMessage" --> s_llm
+    end
+    s_tool -.->|API| TAVILY[("Tavily Search")]:::extNode
+
+    subgraph booking["Booking subgraph — ReAct + HITL"]
+        b_llm["agent LLM<br/>services/agent/prompts/booking.md<br/>+ ngày hiện tại {today}"]:::agentNode
+        b_tool["book_meeting_room<br/>interrupt()"]:::toolNode
+        HITL{{"⚠️ HITL: người dùng<br/>approve / reject<br/>Command(resume=...)"}}:::hitlNode
+        b_db["create_booking_db"]:::toolNode
+        b_llm -- "bắt buộc gọi tool" --> b_tool
+        b_tool == "chờ xác nhận" ==> HITL
+        HITL == "Command(resume)" ==> b_tool
+        b_tool -- "resume(approved)" --> b_db
+        b_db -- "ToolMessage" --> b_llm
+    end
+    b_db -.->|HTTP| BIZ[("Business service :8003")]:::extNode
+
+    chat_node --> END
+    faq --> END
+    search --> END
+    booking --> END
+    END([■ END]):::ioNode
+
+    PERSIST[("Postgres Checkpointer<br/>uet_ai_db — checkpoints")]:::extNode
+    router -.->|persist state| PERSIST

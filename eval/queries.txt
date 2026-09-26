@@ -1,0 +1,36 @@
+# === GENERAL CHAT ===
+Chào bạn, bạn có thể hỗ trợ những gì?
+Cảm ơn bạn nhiều nhé.
+Viết một bài thơ ngắn về đời sống sinh viên công nghệ.
+
+# === UET KNOWLEDGE AGENT (RAG + QDRANT SEMANTIC CACHE) ===
+Tài liệu Human Rights & Academic Community Policy có phải quy định chính thức của UET không?
+UET có những giá trị cốt lõi và khẩu hiệu hành động nào?
+Khung tham chiếu yêu cầu gì khi dùng AI cho quyết định ảnh hưởng lớn?
+Sinh viên có thể tự ý đưa dữ liệu nghiên cứu chưa công bố lên dịch vụ AI công cộng không?
+Một sự cố suýt xảy ra trong phòng thí nghiệm nhưng không có thương tích thì xử lý thế nào?
+Quy trình khiếu nại cần bảo vệ người báo cáo khỏi trả đũa ra sao?
+Theo registry minh họa trong Section C, GD3-402 có mã, site, loại, sức chứa, trạng thái, thiết bị và địa chỉ nào?
+Những phòng nào đang ở trạng thái MAINTENANCE hoặc RESTRICTED?
+Vì sao lớp DSA-01 không thể xếp vào GD3-201?
+Một scheduler có được đổi sức chứa phòng hoặc xóa lịch sử phòng không?
+
+# === WEB SEARCH (REAL-TIME) ===
+Thông báo mới nhất trên website UET hôm nay là gì?
+Thời tiết Hà Nội ngày mai như thế nào?
+Tin tức AI nổi bật trong tuần này là gì?
+Tỷ giá USD sang VND hiện tại là bao nhiêu?
+
+# === BOOKING AGENT (REAL DB + HUMAN IN THE LOOP) ===
+Cho tôi danh mục các phòng MEETING đang ACTIVE, gồm mã phòng, cơ sở, sức chứa và thiết bị.
+Tìm phòng ACTIVE nhỏ nhất đủ cho 14 người, có video conference, rồi cho tôi biết các thuộc tính còn thiếu.
+Đặt phòng GD3-402 lúc 14:00 ngày mai trong 60 phút để họp nhóm nghiên cứu.
+Đặt phòng GD3-302 lúc 15:00 ngày mai để thực hành hệ thống.
+Đặt phòng KM-301 lúc 16:00 ngày mai để thử mạch.
+Đặt phòng UNKNOWN-999 lúc 09:00 ngày mai để họp.
+Tôi muốn đặt phòng HL-C201 để họp giao ban.
+Đặt phòng GD3-402 lúc 07:00 hôm qua để họp khẩn.
+Cho tôi xem toàn bộ lịch đặt phòng của tôi, gồm mã, phòng, thời gian, mục đích và trạng thái.
+Hủy lịch đặt phòng GD3-402 lúc 14:00 ngày mai của tôi.
+Đổi lịch đặt phòng gần nhất của tôi sang 16:00 ngày mai trong 90 phút.
+Thôi không cần đặt phòng nữa, cảm ơn bạn.

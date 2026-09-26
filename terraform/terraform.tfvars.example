@@ -1,0 +1,36 @@
+# Non-secret runtime configuration
+aws_region   = "ap-southeast-1"
+environment  = "production"
+image_tag    = "latest"
+
+llm_model    = "your-primary-model"
+llm_base_url = "https://api.your-gateway.com/v1"
+qdrant_url   = "https://your-cluster.qdrant.io"
+
+# Secrets: keep terraform.tfvars local; it is ignored by terraform/.gitignore.
+llm_api_key    = "replace-me"
+qdrant_api_key = "replace-me"
+redis_url      = "redis://default:replace-me@your-redis-cloud-host:6379/0"
+tavily_api_key = "replace-me"
+
+# Optional integrations
+langsmith_tracing = false
+langsmith_project = "uet-hr-ai"
+langsmith_api_key = ""
+
+# Optional: Terraform generates strong values when these are omitted.
+# postgres_password     = "replace-me"
+# jwt_secret_key        = "replace-me"
+# gateway_shared_secret = "replace-me"
+# internal_api_token    = "replace-me"
+
+# First deployment only: use zero counts until CI has pushed all seven images.
+# service_desired_counts = {
+#   agent        = 0
+#   identity     = 0
+#   rag          = 0
+#   booking      = 0
+#   conversation = 0
+#   gateway      = 0
+#   frontend     = 0
+# }

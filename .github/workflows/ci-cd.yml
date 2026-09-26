@@ -1,0 +1,126 @@
+# ============================================
+# .github/workflows/ci-cd.yml
+#
+# GitHub pipeline for a repository whose root is this project.
+# PR -> lint + offline unit tests.
+# main -> build images, push Amazon ECR, then force ECS deployment.
+#
+# Tên cluster/repo/service PHẢI khớp terraform (terraform/terraform.md §7):
+#   ECS_CLUSTER = uet-ai-cluster · uet-{agent,identity,rag,booking,conversation,gateway,frontend}
+#
+# Required repository secrets (CI user HungPV82_user):
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+# ============================================
+
+name: CI/CD
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+  AWS_REGION: ap-southeast-1
+  ECR_REGISTRY: 005097885316.dkr.ecr.ap-southeast-1.amazonaws.com
+  ECS_CLUSTER: uet-ai-cluster
+
+jobs:
+  # ---------- PR gate: lint + offline tests ----------
+  lint-and-test:
+    name: Lint & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Lint with ruff
+        run: uvx ruff check services scripts tests eval cli.py --select E9,F
+
+      # Only the offline graph smoke tests run in CI. tests/test_auth.py and
+      # tests/test_retrieval.py are integration tests that need live services
+      # (docker compose -f configs/docker-compose.dev.yml up) and run manually.
+      - name: Run offline tests
+        run: uv run pytest tests/test_graph.py -v
+
+  # ---------- Push to main: build and publish images ----------
+  build-and-push:
+    name: Build ${{ matrix.repo }}
+    if: github.event_name == 'push'
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repo: uet-agent
+            dockerfile: services/agent/Dockerfile
+          - repo: uet-identity
+            dockerfile: services/identity/Dockerfile
+          - repo: uet-rag
+            dockerfile: services/rag/Dockerfile
+          - repo: uet-booking
+            dockerfile: services/booking/Dockerfile
+          - repo: uet-conversation
+            dockerfile: services/conversation/Dockerfile
+          - repo: uet-gateway
+            dockerfile: services/gateway/Dockerfile
+          - repo: uet-frontend
+            dockerfile: services/frontend/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} \
+            | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+
+      - name: Build and push image
+        run: |
+          docker build -t ${{ env.ECR_REGISTRY }}/${{ matrix.repo }}:${{ github.sha }} \
+            -f ${{ matrix.dockerfile }} .
+          docker tag ${{ env.ECR_REGISTRY }}/${{ matrix.repo }}:${{ github.sha }} \
+            ${{ env.ECR_REGISTRY }}/${{ matrix.repo }}:latest
+          docker push ${{ env.ECR_REGISTRY }}/${{ matrix.repo }}:${{ github.sha }}
+          docker push ${{ env.ECR_REGISTRY }}/${{ matrix.repo }}:latest
+
+  # ---------- After all images are pushed: roll out on ECS ----------
+  deploy-ecs:
+    name: Deploy to ECS
+    if: github.event_name == 'push'
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Force new deployment of every ECS service
+        run: |
+          for service in agent identity rag booking conversation gateway frontend; do
+            echo "==> Forcing new deployment: uet-${service}"
+            aws ecs update-service \
+              --cluster "${{ env.ECS_CLUSTER }}" \
+              --service "uet-${service}" \
+              --force-new-deployment
+          done

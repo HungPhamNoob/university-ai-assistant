@@ -1,0 +1,122 @@
+# configs/docker-compose.dev.yml
+# Dev stack: build from source + healthchecks + depends_on service_healthy.
+# Start everything:  docker compose -f configs/docker-compose.dev.yml up --build
+# Infra only:         docker compose -f configs/docker-compose.dev.yml up -d postgres
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: uet_ai_db
+    ports:
+      - "5432:5432"
+    # Named volume (không dùng anonymous volume): dữ liệu sống sót qua
+    # `docker compose up --force-recreate` / `down` (chỉ mất khi `down -v`).
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d uet_ai_db"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  identity:
+    build:
+      context: ..
+      dockerfile: services/identity/Dockerfile
+    ports:
+      - "8001:8001"
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # KHÔNG có qdrant container: project dùng Qdrant Cloud cho mọi môi trường
+  # (QDRANT_URL trong .env). Xem scripts/local.sh — từ chối chạy nếu .env trỏ localhost.
+
+  rag:
+    build:
+      context: ..              # build context = repo root
+      dockerfile: services/rag/Dockerfile
+    ports:
+      - "8002:8002"
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  booking:
+    build:
+      context: ..
+      dockerfile: services/booking/Dockerfile
+    ports:
+      - "8003:8003"
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  conversation:
+    build:
+      context: ..
+      dockerfile: services/conversation/Dockerfile
+    ports:
+      - "8004:8004"
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  agent:
+    build:
+      context: ..
+      dockerfile: services/agent/Dockerfile
+    ports:
+      - "8000:8000"
+    env_file: ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: services/gateway/Dockerfile
+    ports:
+      - "${GATEWAY_PORT:-8080}:8000"
+    env_file: ../.env          # JWT_SECRET_KEY + GATEWAY_SHARED_SECRET for render-config.sh
+    environment:
+      # Upstream hosts rendered into kong.yml (see render-config.sh).
+      # Default = compose service DNS names (full-docker mode). scripts/local.sh
+      # exports these as host.docker.internal so Kong can reach the 5 Python
+      # services running natively on the host.
+      IDENTITY_UPSTREAM: ${IDENTITY_UPSTREAM:-identity}
+      AGENT_UPSTREAM: ${AGENT_UPSTREAM:-agent}
+      RAG_UPSTREAM: ${RAG_UPSTREAM:-rag}
+      BOOKING_UPSTREAM: ${BOOKING_UPSTREAM:-booking}
+      CONVERSATION_UPSTREAM: ${CONVERSATION_UPSTREAM:-conversation}
+    extra_hosts:
+      # Linux: make host.docker.internal resolve to the host machine.
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - identity
+      - agent
+      - rag
+      - booking
+      - conversation
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: services/frontend/Dockerfile
+      args:
+        # Empty => same-origin; nginx proxies /api to the gateway service
+        VITE_API_BASE_URL: ""
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - gateway
+
+volumes:
+  postgres_data:
