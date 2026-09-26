@@ -96,8 +96,5 @@ crash.*.log
 Thumbs.db
 .playwright-mcp/
 .claude/settings.local.json
-.claude/skills/*
-!.claude/skills/coding-simple/
-!.claude/skills/coding-simple/**
-!.claude/skills/frontend-design/
-!.claude/skills/frontend-design/**
+# Claude skills stay local — not published to GitHub.
+.claude/skills/
