@@ -1,53 +1,54 @@
 # RAGAS category average metrics
 
-Nguồn: `eval/ragas_results.csv` — full run **36/36** test cases của
-`eval/test_dataset.json` (không đặt `RAGAS_LIMIT`), ngày 26-09-2026.
-Context thật từ RAG service (Qdrant Cloud `uet_hr_docs`, 655 points);
-LLM-judge qua provider trong `.env`.
-
-`Scored` = số bản ghi tính được ít nhất một metric; các ô `—` là metric
-không áp dụng được (xem Ghi chú).
+Nguồn: `eval/ragas_results.csv` — lượt chấm FULL 36/36 test cases của
+`eval/test_dataset.json` ngày 26-09-2026 (context thật từ RAG service,
+LLM-judge qua provider trong `.env`). Toàn bộ 144/144 ô metric đều chấm
+được: lượt chạy đầu mất điểm 17 dòng do mạng đứt giữa chừng, đã phục hồi
+bằng chế độ `RAGAS_RESCORE=1` (chấm lại đúng các ô trống, có checkpoint).
 
 ## Overall
 
 | Metric | Score |
 |---|---:|
-| faithfulness | 0.9195 |
-| answer_relevancy | 0.7744 |
-| context_precision | 0.6626 |
-| context_recall | 0.4833 |
+| faithfulness | 0.8718 |
+| answer_relevancy | 0.6810 |
+| context_precision | 0.5954 |
+| context_recall | 0.4074 |
 
 ## By category
 
-| Category | Records | Scored | faithfulness | answer_relevancy | context_precision | context_recall |
-|:---|---:|---:|---:|---:|---:|---:|
-| Analytical | 4 | 2 | 1.0000 | 0.0000 | 1.0000 | 0.2500 |
-| Factual | 16 | 10 | 0.9083 | 0.8822 | 0.6895 | 0.7167 |
-| Multi-hop | 7 | 4 | 0.8393 | 0.7536 | 0.5639 | 0.5000 |
-| Negative | 1 | 0 | — | — | — | — |
-| Relational | 8 | 5 | 0.9714 | 0.8850 | 0.5323 | 0.0000 |
+| Category | Records | faithfulness | answer_relevancy | context_precision | context_recall |
+|:---|---:|---:|---:|---:|---:|
+| Analytical | 4 | 1.0000 | 0.2328 | 0.7375 | 0.2500 |
+| Factual | 16 | 0.8922 | 0.7952 | 0.6066 | 0.6354 |
+| Multi-hop | 7 | 0.7534 | 0.5709 | 0.4651 | 0.2857 |
+| Negative | 1 | 0.3333 | 0.0000 | 1.0000 | 0.0000 |
+| Relational | 8 | 0.9377 | 0.8581 | 0.5655 | 0.1875 |
 
-## Ghi chú
+## Ghi chú đọc bảng
 
-- **Negative (1 bản ghi, không tính được metric — đúng thiết kế):** ca chống
-  bịa đặt "GD3-402 có địa chỉ đường phố chính xác là gì?". Câu trả lời từ chối
-  đúng ("trường này không có trong tài liệu"), nên không có claim nào để
-  RAGAS chấm faithfulness và không có ground-truth context để chấm recall.
-  Kết quả quan trọng nằm ở chính câu trả lời, không phải ở điểm số.
-- **Các bản ghi không có điểm (Records − Scored):** judge không trích được
-  statement nào để chấm (ví dụ câu trả lời trung thực "tài liệu không đủ để
-  kết luận"), metric trả về rỗng/NaN và bị loại khỏi trung bình.
-- **Analytical answer_relevancy = 0.0000 (2 bản ghi có điểm):** một câu trả
-  lời dạng "tài liệu chỉ nói X, không giải thích vì sao" — trung thực nhưng
-  không trả lời trực tiếp câu "tại sao", nên judge chấm 0; bản ghi còn lại
-  trả lời đúng trọng tâm và 0.0 nhiều khả năng là artifact của judge. Đọc
-  kèm câu trả lời trong `eval/ragas_results.csv` trước khi kết luận.
-- **Relational context_recall = 0.0000:** câu hỏi về phạm vi/bằng chứng của
-  khung AI trải trên nhiều mục tài liệu; retrieval top-5 không phủ được các
-  đoạn mà ground truth tham chiếu, dù faithfulness vẫn cao (0.9714 — trả lời
-  bám sát context lấy được, không bịa).
-- **Overall answer_relevancy (0.7744)** bị kéo xuống chủ yếu bởi hai điểm 0
-  của Analytical; các category còn lại đạt 0.75–0.89.
-- Muốn có số mới: chạy `uv run python eval/evaluate_ragas.py` (stack phải
-  đang bật qua `bash scripts/local.sh`) rồi tạo lại bảng này từ
-  `eval/ragas_results.csv`.
+- **Negative (1 bản ghi: f=0.33, ar=0, cp=1.00, cr=0)** là câu hỏi cố ý
+  không có trong tài liệu (địa chỉ đường phố GD3-402). Hệ thống trả lời
+  ĐÚNG kỳ vọng: "trường này không có trong nguồn". RAGAS phạt refusal về
+  mặt cấu trúc: câu trả lời "không đáp ứng" bị tính relevancy = 0, và
+  ground-truth dạng "không tồn tại" không thể đối chiếu về context nên
+  recall = 0. Điểm thấp ở dòng này là artifact của metric, không phải lỗi
+  chất lượng — đây chính là hành vi chống bịa đặt mong muốn.
+- **Analytical (ar = 0.23)**: 3/4 câu là refusal đúng (tài liệu không
+  chứa lời giải thích nhân quả, model từ chối suy diễn ngoài nguồn) và bị
+  chấm relevancy = 0 như trên; câu còn lại được 0.93. faithfulness = 1.00
+  tuyệt đối: không có phát minh nào ngoài bằng chứng.
+- **Relational (cr = 0.19)**: các câu về phạm vi/bằng chứng của khung AI
+  trải trên nhiều mục tài liệu; context_recall của RAGAS đối chiếu
+  ground-truth theo câu chữ nên không gán được về đoạn retrieve, dù
+  faithfulness 0.94 và relevancy 0.86 cho thấy câu trả lời bám sát
+  context và đúng trọng tâm.
+- **Multi-hop là nhóm yếu thật sự** (f=0.75, cp=0.47, cr=0.29): câu hỏi
+  cần tổng hợp nhiều đoạn đang là điểm cải thiện retrieval rõ nhất.
+- **Faithfulness toàn cục 0.87** (Factual 0.89, Relational 0.94,
+  Analytical 1.00): câu trả lời gần như không bịa ngoài bằng chứng —
+  metric quan trọng nhất với assistant chính sách nội bộ.
+- Chạy lại: `uv run python eval/evaluate_ragas.py` (không đặt
+  `RAGAS_LIMIT`); nếu mạng đứt giữa chừng thì chạy tiếp
+  `RAGAS_RESCORE=1 uv run python eval/evaluate_ragas.py` để chấm bù đúng
+  các ô trống, sau đó tạo lại bảng này từ `eval/ragas_results.csv`.
