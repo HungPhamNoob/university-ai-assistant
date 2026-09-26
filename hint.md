@@ -20,7 +20,7 @@ cùng thay đổi.
 
 ## 2. Cây dự án có chủ đích
 
-~~~text
+```text
 Final/
   .github/workflows/ci-cd.yml
   .claude/rules/
@@ -127,29 +127,29 @@ Final/
   cli.py
   pyproject.toml
   uv.lock
-~~~
+```
 
 Không tạo code mới trong src/. Prompt thuộc services/agent/prompts/ vì chỉ
 agent service sử dụng. Mỗi Python package có __init__.py.
 
 ## 3. Luồng request
 
-~~~mermaid
+```mermaid
 flowchart TD
-    U[Browser hoặc CLI] --> K[Kong]
-    K -->|JWT và X-User-*| P[Primary LangGraph]
-    P --> F[FAQ subgraph]
-    P --> S[Search subgraph]
-    P --> B[Booking subgraph]
-    P --> G[General chat]
-    F --> R[RAG service]
-    S --> W[Tavily]
-    B --> C[Booking service]
-    P --> H[Conversation history và episodic memory]
-    B --> I{Write action?}
-    I -->|Có| A[HITL Approve hoặc Reject]
+    U["Browser hoặc CLI"] --> K["Kong"]
+    K -->|"JWT và X-User-*"| P["Primary LangGraph"]
+    P --> F["FAQ subgraph"]
+    P --> S["Search subgraph"]
+    P --> B["Booking subgraph"]
+    P --> G["General chat"]
+    F --> R["RAG service"]
+    S --> W["Tavily"]
+    B --> C["Booking service"]
+    P --> H["Conversation history và episodic memory"]
+    B --> I{"Write action?"}
+    I -->|"Có"| A["HITL Approve hoặc Reject"]
     A --> C
-~~~
+```
 
 Primary router chỉ phân loại intent, không trả lời thay subagent. Parent graph
 và subgraph dùng state riêng; chỉ delta message cần thiết được chuyển qua ranh
@@ -243,7 +243,7 @@ vi có chủ đích; không chạy nhầm vào collection khác.
 
 Thứ tự bắt buộc trước publication:
 
-~~~text
+```text
 ruff format/check
 pytest
 local.sh
@@ -256,7 +256,7 @@ secret and forbidden-term scan
 git diff/status audit
 commit and force-push main
 local.sh down
-~~~
+```
 
 Nếu bước nào thất bại: đọc log, sửa nguyên nhân, chạy lại bước đó và các bước
 phụ thuộc. Chỉ commit/push sau khi source tree không còn dấu vết miền cũ và
